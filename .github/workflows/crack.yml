@@ -19,12 +19,23 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install apktool
+      - name: Install tools
         run: |
           wget -q https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O /usr/local/bin/apktool.jar
           echo '#!/bin/sh' > /usr/local/bin/apktool
           echo 'java -jar /usr/local/bin/apktool.jar "$@"' >> /usr/local/bin/apktool
           chmod +x /usr/local/bin/apktool
+          # android build-tools for zipalign + apksigner
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq zipalign apksigner 2>/dev/null || true
+          # fallback: download cmdline tools if needed
+          if ! command -v apksigner >/dev/null; then
+            wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdtools.zip
+            unzip -q cmdtools.zip -d /tmp/android-sdk
+            yes | /tmp/android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=/tmp/android-sdk "build-tools;34.0.0" || true
+            export PATH=$PATH:/tmp/android-sdk/build-tools/34.0.0
+            echo "PATH=$PATH" >> $GITHUB_ENV
+          fi
 
       - name: Check original.apk
         run: |
@@ -41,13 +52,29 @@ jobs:
         run: python3 patch.py
 
       - name: Build
-        run: apktool b green -o GREEN_V12_CRACKED_unsigned.apk
+        run: apktool b green -o unsigned.apk
 
-      - name: Sign
+      - name: Zipalign + Sign (v1+v2+v3)
         run: |
           keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" || true
-          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore debug.keystore -storepass android -keypass android GREEN_V12_CRACKED_unsigned.apk androiddebugkey
-          mv GREEN_V12_CRACKED_unsigned.apk GREEN_V12_CRACKED.apk
+
+          # zipalign
+          if command -v zipalign >/dev/null; then
+            zipalign -f -p 4 unsigned.apk aligned.apk
+          else
+            cp unsigned.apk aligned.apk
+          fi
+
+          # apksigner (preferred)
+          if command -v apksigner >/dev/null; then
+            apksigner sign --ks debug.keystore --ks-pass pass:android --key-pass pass:android --out GREEN_V12_CRACKED.apk aligned.apk
+          else
+            # fallback jarsigner + hope
+            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore debug.keystore -storepass android -keypass android aligned.apk androiddebugkey
+            mv aligned.apk GREEN_V12_CRACKED.apk
+          fi
+
+          ls -lh GREEN_V12_CRACKED.apk
 
       - name: Upload
         uses: actions/upload-artifact@v4
