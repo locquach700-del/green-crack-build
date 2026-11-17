@@ -123,9 +123,11 @@ for pattern in ["green/smali/**/x22/a.smali", "green/smali_classes*/**/x22/a.sma
 
 print("[OK] Crack done")
 
-# ========== 2. FULL Vietnamese translation ==========
+# ========== 2. FULL Vietnamese - ONLY inside const-string ==========
+# Only replace inside quoted strings of const-string lines to avoid breaking types/methods
+
 replacements = [
-    # === LOGIN ===
+    # LOGIN
     ("CENTRAL DE ACESSO / V12", "TRUNG TÂM TRUY CẬP / V12"),
     ("AUTENTICAR LICENCA", "XÁC THỰC KEY"),
     ("AUTENTICAR LICENÇA", "XÁC THỰC KEY"),
@@ -146,7 +148,7 @@ replacements = [
     ("Atualizar", "Cập nhật"),
     ("Sair", "Thoát"),
 
-    # === SESSION / TIMER ===
+    # SESSION
     ("Key ativa • Sem validade", "Key đang hoạt động • Không hết hạn"),
     ("Key ativa", "Key đang hoạt động"),
     ("Sem validade", "Không hết hạn"),
@@ -157,7 +159,7 @@ replacements = [
     ("Key expirada", "Key đã hết hạn"),
     ("Atualize o aplicativo para continuar", "Cập nhật ứng dụng để tiếp tục"),
 
-    # === MAIN / STATUS ===
+    # MAIN UI
     ("Instalar", "Cài đặt"),
     ("INSTALAR", "CÀI ĐẶT"),
     ("Launch", "Mở game"),
@@ -192,24 +194,17 @@ replacements = [
     ("CANCELAR", "HỦY"),
     ("Confirmar", "Xác nhận"),
     ("CONFIRMAR", "XÁC NHẬN"),
-    ("Sim", "Có"),
-    ("Não", "Không"),
-    ("OK", "OK"),
     ("Fechar", "Đóng"),
     ("FECHAR", "ĐÓNG"),
 
-    # === ADB / PAIRING ===
+    # ADB / PAIR
     ("Pareamento", "Ghép nối"),
     ("PAREAMENTO", "GHÉP NỐI"),
     ("Parear", "Ghép nối"),
-    ("ADB", "ADB"),
-    ("Wireless debugging", "Gỡ lỗi không dây"),
     ("Depuração sem fio", "Gỡ lỗi không dây"),
     ("Código de pareamento", "Mã ghép nối"),
-    ("Porta", "Cổng"),
-    ("IP", "IP"),
 
-    # === MODULE / INSTALL ===
+    # MODULE
     ("Módulo", "Module"),
     ("MÓDULO", "MODULE"),
     ("Instalando módulo", "Đang cài module"),
@@ -220,9 +215,7 @@ replacements = [
     ("Permissão", "Quyền"),
     ("PERMISSÃO", "QUYỀN"),
 
-    # === FLOATING / MENU ===
-    ("Menu", "Menu"),
-    ("MENU", "MENU"),
+    # MENU
     ("Configurações", "Cài đặt"),
     ("CONFIGURAÇÕES", "CÀI ĐẶT"),
     ("Opções", "Tùy chọn"),
@@ -233,10 +226,8 @@ replacements = [
     ("DESATIVAR", "TẮT"),
     ("Ligado", "Bật"),
     ("Desligado", "Tắt"),
-    ("On", "Bật"),
-    ("Off", "Tắt"),
 
-    # === ERRORS / MESSAGES ===
+    # ERRORS
     ("Limite de usos atingido", "Đã hết lượt sử dụng"),
     ("Aplicativo indisponível no painel", "Ứng dụng không khả dụng"),
     ("GREEN V12 não encontrado no painel", "Không tìm thấy GREEN V12"),
@@ -245,7 +236,6 @@ replacements = [
     ("Key invalida", "Key không hợp lệ"),
     ("Conexão perdida", "Mất kết nối"),
     ("Tempo esgotado", "Hết thời gian"),
-    ("Timeout", "Hết thời gian"),
     ("Falha na conexão", "Kết nối thất bại"),
     ("Sem internet", "Không có mạng"),
     ("Verifique sua conexão", "Kiểm tra kết nối mạng"),
@@ -255,7 +245,7 @@ replacements = [
     ("Aguarde", "Vui lòng đợi"),
     ("AGUARDE", "VUI LÒNG ĐỢI"),
 
-    # === COMMON PORTUGUESE WORDS ===
+    # COMMON
     ("Acesso", "Truy cập"),
     ("ACESSO", "TRUY CẬP"),
     ("Licença", "Key"),
@@ -277,43 +267,61 @@ replacements = [
     ("CANAL", "KÊNH"),
     ("Grupo", "Nhóm"),
     ("GRUPO", "NHÓM"),
-    ("Telegram", "Telegram"),
-    ("YouTube", "YouTube"),
     ("Baixar", "Tải xuống"),
     ("BAIXAR", "TẢI XUỐNG"),
-    ("Download", "Tải xuống"),
     ("Atualizado", "Đã cập nhật"),
     ("ATUALIZADO", "ĐÃ CẬP NHẬT"),
     ("Novo", "Mới"),
     ("NOVO", "MỚI"),
-    ("Beta", "Beta"),
     ("Estável", "Ổn định"),
     ("ESTÁVEL", "ỔN ĐỊNH"),
 ]
 
-def replace_in_file(filepath, pairs):
-    try:
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-            content = f.read()
-        original = content
+def translate_const_strings(content, pairs):
+    """Only replace text inside const-string \"...\"  lines"""
+    def replacer(match):
+        full = match.group(0)
+        # extract the string part
+        q1 = full.find('"')
+        q2 = full.rfind('"')
+        if q1 == -1 or q2 <= q1:
+            return full
+        prefix = full[:q1+1]
+        s = full[q1+1:q2]
+        suffix = full[q2:]
         for old, new in pairs:
-            if old in content:
-                content = content.replace(old, new)
-        if content != original:
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(content)
-            return True
-    except Exception as e:
-        pass
-    return False
+            if old in s:
+                s = s.replace(old, new)
+        return prefix + s + suffix
+
+    # match const-string lines (with optional register)
+    pattern = re.compile(r'const-string(?:/jumbo)?\s+v\d+,\s*".*?"', re.DOTALL)
+    return pattern.sub(replacer, content)
 
 count = 0
 for root, dirs, files in os.walk("green"):
     for name in files:
-        if name.endswith(".smali") or name.endswith(".xml"):
-            full = os.path.join(root, name)
-            if replace_in_file(full, replacements):
+        if not name.endswith(".smali") and not name.endswith(".xml"):
+            continue
+        full = os.path.join(root, name)
+        try:
+            with open(full, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+            original = content
+
+            if name.endswith(".smali"):
+                content = translate_const_strings(content, replacements)
+            else:
+                # xml: safe full replace
+                for old, new in replacements:
+                    content = content.replace(old, new)
+
+            if content != original:
+                with open(full, "w", encoding="utf-8") as f:
+                    f.write(content)
                 count += 1
+        except Exception:
+            pass
 
 print(f"[OK] Full Vietnamese translation done ({count} files changed)")
 print("[OK] All patches finished")
