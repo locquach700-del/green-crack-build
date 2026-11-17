@@ -181,7 +181,7 @@ def translate_const_strings(content, pairs):
     return pattern.sub(replacer, content)
 
 count = 0
-for root, dirs, files in os.walk("green"):
+for root, dirs, files in os.walk("decoded"):
     for name in files:
         if not name.endswith(".smali") and not name.endswith(".xml"):
             continue
@@ -205,5 +205,5 @@ for root, dirs, files in os.walk("green"):
         except Exception:
             pass
 
-print(f"[OK] Full Vietnamese translation done ({count} files changed)")
+print(f"[OK] Vietnamese translation done ({count} files changed)")
 print("[OK] All patches finished")
