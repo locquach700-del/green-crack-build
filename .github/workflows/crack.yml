@@ -21,14 +21,10 @@ jobs:
 
       - name: Install apktool
         run: |
-          wget -q https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O apktool.jar
-          cat > apktool << 'EOF'
-#!/bin/bash
-java -jar "$(dirname "$0")/apktool.jar" "$@"
-EOF
-          chmod +x apktool
-          sudo mv apktool /usr/local/bin/
-          sudo mv apktool.jar /usr/local/bin/
+          wget -q https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O /usr/local/bin/apktool.jar
+          echo '#!/bin/sh' > /usr/local/bin/apktool
+          echo 'java -jar /usr/local/bin/apktool.jar "$@"' >> /usr/local/bin/apktool
+          chmod +x /usr/local/bin/apktool
 
       - name: Check original.apk
         run: |
