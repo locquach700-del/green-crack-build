@@ -4,11 +4,38 @@ import os, re
 # Only replace inside quoted strings of const-string lines to avoid breaking types/methods
 
 replacements = [
-    ("AIM FOV SIZE 1 sampai 100 persen", "KÍCH THƯỚC FOV NGẮM 1 đến 100%"),
+    ("LA conexão ADB foi desconectada. Ative a depuração sem fio e reconecte o ADB.", "Kết nối ADB đã bị ngắt. Bật gỡ lỗi không dây rồi kết nối lại ADB."),
+    ("QA pasta do jogo está inacessível. Autorize o acesso nas configurações ou use ADB.", "Thư mục trò chơi không thể truy cập. Cấp quyền trong cài đặt hoặc dùng ADB."),
+    ("A resposta do ADB é muito longa..", "Phản hồi ADB quá dài."),
+    ("!A resposta do ADB é muito longa..", "Phản hồi ADB quá dài."),
+    ("ADB CONECTADO. PROXY ATIVO pronto para abrir..", "ADB ĐÃ KẾT NỐI. PROXY ĐANG BẬT, SẴN SÀNG MỞ.."),
+    ("ADB CONECTADO. Toque em INJETAR PROXY.", "ADB ĐÃ KẾT NỐI. Chạm vào INJECT PROXY."),
+    ("ADB conectado. Volte ao GREEN V12 e toque em PREPARAR ARQUIVOS.", "ADB đã kết nối. Quay lại GREEN V12 và chạm vào CHUẨN BỊ TỆP."),
+    ("ADB desconectado. Reconecte o ADB..", "ADB đã ngắt kết nối. Kết nối lại ADB.."),
+    ("ADB desconectado. Toque em ATIVAR ou reconecte..", "ADB đã ngắt kết nối. Chạm vào BẬT hoặc kết nối lại.."),
+    ("ADB mengakhiri respons sebelum konfirmasi.", "ADB kết thúc phản hồi trước khi xác nhận."),
+    ("Abra Depuração sem fio > Parear com código. Expanda a notificação GREEN V12 e toque em DIGITAR CÓDIGO, ou digite pelo aplicativo.", "Mở Gỡ lỗi không dây > Ghép nối bằng mã. Mở rộng thông báo GREEN V12 và chạm NHẬP MÃ, hoặc nhập trong ứng dụng."),
+    ("Abra Parear com código no Android em tela dividida e digite os seis números:", "Mở Ghép nối bằng mã trên Android ở chế độ chia đôi màn hình rồi nhập sáu chữ số:"),
+    ("AIM FOV SIZE harus 1–100.", "KÍCH THƯỚC FOV NGẮM phải từ 1–100."),
+    ("AIM FOV SIZE 1 sampai 100 persen", "KÍCH THƯỚC FOV NGẮM từ 1 đến 100%"),
+    ("Fechar e remover o flutuante", "Đóng và gỡ nút nổi"),
+    ("Servidor indisponível (HTTP", "Máy chủ không khả dụng (HTTP"),
+    ("Resposta muito grande", "Phản hồi quá lớn"),
+    ("Minimizar menu", "Thu nhỏ menu"),
+    ("Minimizar", "Thu nhỏ"),
     ("Menu flutuante ativo", "Menu nổi đang bật"),
+    ("AIMBOT HEAD", "NHẮM ĐẦU"),
+    ("AIMLOCK BODY", "KHÓA NGẮM THÂN"),
+    ("AIM FOV SIZE", "KÍCH THƯỚC FOV NGẮM"),
+    ("AIM FOV", "FOV NGẮM"),
+    ("AJUSTES", "CÀI ĐẶT"),
+    ("ADB CONECTADO", "ADB ĐÃ KẾT NỐI"),
     ("PAREAMENTO ADB", "GHÉP NỐI ADB"),
     ("PRONTAS PARA ATIVAR", "SẴN SÀNG KÍCH HOẠT"),
-    ("10 segundos.", "10 giây."),
+    ("DRAG HS", "KÉO TÂM HS"),
+    ("DRAG", "KÉO TÂM"),
+    ("Accept", "Chấp nhận"),
+    ("accept", "Chấp nhận"),
     # LOGIN
     ("CENTRAL DE ACESSO / V12", "TRUNG TÂM TRUY CẬP / V12"),
     ("AUTENTICAR LICENCA", "XÁC THỰC KEY"),
@@ -171,7 +198,7 @@ def translate_const_strings(content, pairs):
         prefix = full[:q1+1]
         s = full[q1+1:q2]
         suffix = full[q2:]
-        for old, new in pairs:
+        for old, new in sorted(pairs, key=lambda pair: len(pair[0]), reverse=True):
             if old in s:
                 s = s.replace(old, new)
         return prefix + s + suffix
@@ -195,7 +222,7 @@ for root, dirs, files in os.walk("decoded"):
                 content = translate_const_strings(content, replacements)
             else:
                 # xml: safe full replace
-                for old, new in replacements:
+                for old, new in sorted(replacements, key=lambda pair: len(pair[0]), reverse=True):
                     content = content.replace(old, new)
 
             if content != original:
