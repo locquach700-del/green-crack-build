@@ -1,0 +1,76 @@
+name: Vietnamese localization build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'translate.py'
+
+permissions:
+  contents: read
+
+jobs:
+  build-vietnamese:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Apktool and Android build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin" "$RUNNER_TEMP/android-sdk/cmdline-tools"
+          curl -fsSL https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -o "$HOME/.local/bin/apktool.jar"
+          cat > "$HOME/.local/bin/apktool" <<'EOF'
+          #!/usr/bin/env bash
+          exec java -jar "$HOME/.local/bin/apktool.jar" "$@"
+          EOF
+          chmod +x "$HOME/.local/bin/apktool"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+          curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o "$RUNNER_TEMP/cmdline-tools.zip"
+          unzip -q "$RUNNER_TEMP/cmdline-tools.zip" -d "$RUNNER_TEMP/android-sdk/cmdline-tools"
+          mv "$RUNNER_TEMP/android-sdk/cmdline-tools/cmdline-tools" "$RUNNER_TEMP/android-sdk/cmdline-tools/latest"
+          echo "$RUNNER_TEMP/android-sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "ANDROID_HOME=$RUNNER_TEMP/android-sdk" >> "$GITHUB_ENV"
+          yes | "$RUNNER_TEMP/android-sdk/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$RUNNER_TEMP/android-sdk" "platform-tools" "build-tools;34.0.0" || true
+          echo "$RUNNER_TEMP/android-sdk/build-tools/34.0.0" >> "$GITHUB_PATH"
+
+      - name: Check input APK
+        run: |
+          test -f original.apk || { echo "Missing original.apk in repository root"; exit 1; }
+          ls -lh original.apk
+
+      - name: Decode APK
+        run: apktool d -f original.apk -o decoded
+
+      - name: Translate visible strings to Vietnamese
+        run: python3 translate.py
+
+      - name: Rebuild APK
+        run: apktool b decoded -o unsigned.apk
+
+      - name: Align and sign APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -v -keystore localization.keystore -storepass android -alias localization -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Vietnamese Build,O=Localization,C=VN"
+          zipalign -f -p 4 unsigned.apk aligned.apk
+          apksigner sign --ks localization.keystore --ks-pass pass:android --key-pass pass:android --out GREEN_V12_VI.apk aligned.apk
+          apksigner verify --verbose GREEN_V12_VI.apk
+          ls -lh GREEN_V12_VI.apk
+
+      - name: Upload Vietnamese APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: GREEN_V12_VI
+          path: GREEN_V12_VI.apk
+          retention-days: 7
