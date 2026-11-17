@@ -1,5 +1,6 @@
-import os, glob, sys
+import os, glob, sys, re
 
+# ========== 1. Crack key + integrity ==========
 path = "green/smali_classes2/com/xyz/app/GreenApi.smali"
 if not os.path.exists(path):
     path = "green/smali/com/xyz/app/GreenApi.smali"
@@ -120,4 +121,70 @@ for pattern in ["green/smali/**/x22/a.smali", "green/smali_classes*/**/x22/a.sma
                 f.write(c)
             print("x22.a patched", p)
 
-print("All patches done")
+print("Crack patches done")
+
+# ========== 2. Translate UI strings to Vietnamese ==========
+# Map Portuguese/English -> Vietnamese
+replacements = [
+    # Login screen
+    ("CENTRAL DE ACESSO / V12", "TRUNG TÂM TRUY CẬP / V12"),
+    ("AUTENTICAR LICENCA", "XÁC THỰC KEY"),
+    ("Conecte sua key ao painel GREEN.", "Nhập key để kích hoạt GREEN."),
+    ("VALIDAR ACESSO", "XÁC NHẬN"),
+    ("OBTER KEY", "LẤY KEY"),
+    ("GREEN MODZ  •  ACESSO POR KEY", "GREEN MODZ  •  MỞ BẰNG KEY"),
+    ("Digite a key.", "Hãy nhập key."),
+    ("Consultando sua key…", "Đang kiểm tra key…"),
+    ("VERIFICANDO…", "ĐANG KIỂM TRA…"),
+    ("Não foi possível validar. Confira sua conexão e tente novamente.", "Không thể xác thực. Kiểm tra mạng rồi thử lại."),
+    ("Não foi possível abrir a tela principal.", "Không thể mở màn hình chính."),
+    ("Não foi possível abrir o link. Verifique seu navegador.", "Không thể mở link. Kiểm tra trình duyệt."),
+    ("Atualização disponível", "Có bản cập nhật"),
+    ("Atualize o GREEN V12 para continuar.", "Cập nhật GREEN V12 để tiếp tục."),
+    ("Atualizar", "Cập nhật"),
+    ("Sair", "Thoát"),
+
+    # Session / timer
+    ("Key ativa • Sem validade", "Key đang hoạt động • Không hết hạn"),
+    ("Validade  ", "Hạn dùng  "),
+    (" • Sem conexão", " • Mất mạng"),
+    ("Key expirada", "Key đã hết hạn"),
+    ("Atualize o aplicativo para continuar", "Cập nhật ứng dụng để tiếp tục"),
+
+    # Common errors
+    ("Key expirada", "Key đã hết hạn"),
+    ("Limite de usos atingido", "Đã hết lượt sử dụng"),
+    ("Aplicativo indisponível no painel", "Ứng dụng không khả dụng"),
+    ("GREEN V12 não encontrado no painel", "Không tìm thấy GREEN V12"),
+
+    # Other UI bits that may appear
+    ("ACESSO POR KEY", "MỞ BẰNG KEY"),
+    ("ACESSO", "TRUY CẬP"),
+]
+
+def replace_in_file(filepath, pairs):
+    try:
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+        original = content
+        for old, new in pairs:
+            content = content.replace(old, new)
+        if content != original:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(content)
+            return True
+    except Exception as e:
+        print("skip", filepath, e)
+    return False
+
+count = 0
+for root, dirs, files in os.walk("green"):
+    for name in files:
+        if name.endswith(".smali") or name.endswith(".xml"):
+            full = os.path.join(root, name)
+            if replace_in_file(full, replacements):
+                count += 1
+                print("Translated:", full)
+
+print(f"Language patches done ({count} files)")
+print("All patches finished")
